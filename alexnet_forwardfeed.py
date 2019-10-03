@@ -31,22 +31,20 @@ def perform_convolution(x, filter, out_depth, c_s, k, p_s,
     conv_b = tf.constant(tf.zeros(out_depth))
     conv_in = tf.nn.conv2d(x, conv_W, strides=[1, c_s, c_s, 1],
                             padding=conv_pad) + conv_b
-    conv = tf.nn.relu(conv_in)
+    conv_out = tf.nn.relu(conv_in)
 
-    if not use_max_pooling:
-        return conv
-
-    max_pool = tf.nn.max_pool(conv, ksize=[1, k, k, 1],
+    if use_max_pooling:
+        conv_out = tf.nn.max_pool(conv_out, ksize=[1, k, k, 1],
                                  strides=[1, p_s, p_s, 1], padding=pooling_pad)
 
     if use_normalization:
-        conv_out = tf.nn.local_response_normalization(max_pool,
+        conv_out = tf.nn.local_response_normalization(conv_out,
                                              depth_radius=_RADIUS,
                                              alpha=_ALPHA,
                                              beta=_BETA,
                                              bias=_BIAS)
-        return conv_out
-    return max_pool
+
+    return conv_out
 
 
 # Convolutional Layer 1
@@ -66,5 +64,5 @@ conv_4 = perform_convolution(conv_3, 3, 384, 1, 3, 2,
                              conv_pad="SAME", use_max_pooling=False)  # (1,384,13,13 )
 
 # Convolutional Layer 5
-conv_5 = perform_convolution(conv_4, 3, 256, 1, 3, 2, conv_pad="SAME", )  #(1, 256, 6, 6 )
+conv_5 = perform_convolution(conv_4, 3, 256, 1, 3, 2, conv_pad="SAME")  #(1, 256, 6, 6 )
 print("done")
