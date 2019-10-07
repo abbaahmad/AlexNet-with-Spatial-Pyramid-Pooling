@@ -1,17 +1,32 @@
 import tensorflow as tf
-from spp import spatial_pyramid_pool
+from spp import spatial_pyramid_pooling
+from tensorflow.contrib.layers import flatten
 
 # Enable eager execution to see results without building graph
 tf.enable_eager_execution()
 
-# Local response Normalization constants
-_RADIUS = 2
-_ALPHA = 2e-05
-_BETA = 0.75
-_BIAS = 1.0
+class AlexNet_with_Spp:
+
+    def __init__(self, input_width, input_height, lrn_radius, lrn_alpha, lrn_beta,
+                 lrn_bias,num_classes, dropout_rate, spp_bins):
+
+        # Local response Normalization constants
+        self.lrn_radius = 2
+        self.lrn_alpha = 2e-05
+        self.lrn_beta = 0.75
+        self.lrn_bias = 1.0
+        self.dropout_rate = 0.5
+        self.num_classes = 1000
+        self.spp_bins = [16, 4, 2]
+        self.input_width = input_width
+        self.input_height = input_height
+
+
+
+
 
 x = tf.random_normal(
-    shape=(1, 227, 227, 3))  # (batch_size, width, height, channels)
+    shape=(1, 388, 388, 3))  # (batch_size, width, height, channels)
 
 def perform_convolution(x, filter, out_depth, c_s, k, p_s,
                         conv_pad, pooling_pad="VALID", use_normalization=False, use_max_pooling=True):
@@ -64,5 +79,32 @@ conv_4 = perform_convolution(conv_3, 3, 384, 1, 3, 2,
                              conv_pad="SAME", use_max_pooling=False)  # (1,384,13,13 )
 
 # Convolutional Layer 5
-conv_5 = perform_convolution(conv_4, 3, 256, 1, 3, 2, conv_pad="SAME")  #(1, 256, 6, 6 )
+conv_5 = perform_convolution(conv_4, 3, 256, 1, 3, 2, conv_pad="SAME")  # (1, 256, 6, 6 )
+
+spp_out = spatial_pyramid_pooling(conv_5, levels=[4, 2, 1])
+
+# Flatten the neurons
+fc0 = flatten(conv_5)
+
+
+# Fully connected layer 1
+fc1_W = tf.truncated_normal(shape=(tf.size(fc0), 4096))
+fc1_b = tf.constant(tf.zeros(4096))
+fc1 = tf.nn.relu(tf.matmul(fc0, fc1_W) + fc1_b)
+fc1 = tf.nn.dropout(fc1, _DROPOUT_RATE)
+
+# Fully connected layer 2
+fc2_W = tf.truncated_normal(shape=(tf.size(fc1), 4096))
+fc2_b = tf.constant(tf.zeros(4096))
+fc2 = tf.nn.relu(tf.matmul(fc1, fc2_W) + fc2_b)
+fc2 = tf.nn.dropout(fc2, _DROPOUT_RATE)
+
+# Fully connected layer 3
+fc3_W = tf.truncated_normal(shape=(tf.size(fc2), _NUM_CLASSES))
+fc3_b = tf.constant(tf.zeros(_NUM_CLASSES))
+fc3 = tf.nn.relu(tf.matmul(fc2, fc3_W) + fc3_b)
+
+# Logits
+logits = tf.nn.softmax(fc3)
+
 print("done")
